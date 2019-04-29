@@ -1,0 +1,504 @@
+---
+title: "Final Project - Bike Vendor"
+author: "Rachel Steipp"
+date: "4/28/2019"
+output: 
+  html_document:
+    toc: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+
+## Introduction
+This is the final project for the Applied Data Science I590 course at Indiana University, Spring 2019.  
+- The project's objective is to discover insights through EDA by data cleaning, description, visualization, regression and cluster analysis of a dataset called BikeVendors.
+
+### Questions: Initial
+Examine names of the dataset's colums:
+
+```{r echo= FALSE, message= FALSE, warning=FALSE}
+library(readr)
+library(treemap)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(ggrepel)
+#read in the data set
+#setwd('/Users/res/Documents/School /ADS/data')
+bikeVndr <- read_csv("bikeVendors.csv")
+
+#names of all the column headers
+ColName <- names(bikeVndr)
+```
+
+The following questions arise.
+
+1. What is the distribution of the variable, price? 
+2. What is the relationship between price and the categorical variables?
+3. Is there a relationship between the various bike vendors? 
+4. What is the relationship between price and geographic location of vendor?
+
+---
+
+## Data Description
+```{r echo= FALSE, message= FALSE, warning=FALSE}
+#dimensions of the data
+DIM <- dim(bikeVndr)
+#unique names of the variable, model
+Model <- unique(bikeVndr$model)
+#unique names of the variable, category1
+Terrain <- unique(bikeVndr$category1)
+#unique names of the variable, category2
+Specialty <- unique(bikeVndr$category2)
+#unique names of the variable, frame
+FrameType <- unique(bikeVndr$frame)
+#summary of the price statistics
+PriceSum <- as.integer(summary(bikeVndr$price))
+#verification of the class type for the price variable
+PriceClass <- class(bikeVndr$price)
+```
+
+On initial examination of the dataset, no missing data was found.  The dimensions of this dataset are `r DIM[1]` rows by `r DIM[2]` columns.  Each row or observation is one of `r DIM[1]` different models of bikes. Each observation has `r DIM[2]` variables, the first five include four character type variables `r ColName[1]`, `r ColName[4]`, `r ColName[2]`, `r ColName[3]`, and one `r PriceClass` type variable,  `r ColName[5]`. 
+
+The variables,  `r ColName[1]`, `r ColName[4]`, `r ColName[5]` are easily understood by their naming. Model of the bike is `r ColName[1]`.  There are `r DIM[1]` in total with names like `r Model[1]`, `r Model[72]`, and `r Model[39]`.  The material from which the frame is constructed, `r ColName[4]` is either `r FrameType[1]` or  `r FrameType[2]`.  The price, in dollars, of that bike model is a variable called `r ColName[5]`.  The price range is from `r PriceSum[1]` on the low end to `r PriceSum[6]` on the high end.   
+
+```{r echo= FALSE, message= FALSE, warning=FALSE}
+#changing the column names
+names(bikeVndr)[2]<-"terrain"
+names(bikeVndr)[3]<-"specialty"
+```
+The next two variables, `r ColName[2]` and `r ColName[3]` are not readily known from their naming.  They are rename in the cleaning of the data for clearer understanding of their contents.  Describing the type of terrain the bike is suited for is the variable, `r ColName[2]`.  This variable changes to 'terrain' and can be either, `r Terrain[1]` or `r Terrain[2]`. Those can be further divided into terrain specialties.  The variable, `r ColName[3]` changes to 'specialty'.  There are five specialties for mountian bikes;  `r Specialty[4]`, `r Specialty[5]`, `r Specialty[6]`, `r Specialty[1]`, `r Specialty[3]` and four specialties for road bikes; `r Specialty[8]`, `r Specialty[9]`, `r Specialty[2]`, `r Specialty[7]`. 
+
+The next 30 variables are bike vendors whose names represent a United States city and include `r ColName[25]`, `r ColName[18]`, and `r ColName[34]`.   For each model of bike, the bike vendor has a decimal proportion based on how much inventory of that bike model the vendor has.  There is a proportion for each of the 97 bike models.  From this inspection, it is noticed that headers of vendor columns are values, not variable names.  This issue is cleaned by making this wide data long using the 'gather' verb from the 'dplyr' package.
+
+Now the cleaned dataset looks like this:
+```{r echo= FALSE, message= FALSE, warning=FALSE}
+#cleaning the data by making the wide data long
+bikeVndr_cln <- bikeVndr %>% gather("Vendor", "Invent_Proport", -price, -frame, -model, -terrain, -specialty)
+#summary inforamtion for the clean data set
+IP_sum <- summary(bikeVndr_cln$Invent_Proport)
+clean_dim <- dim(bikeVndr_cln)
+clean_names <- names(bikeVndr_cln)
+```
+The new dimensions are `r clean_dim[1]` rows and `r clean_dim[2]` columns.  The Vendor character variable is has 35 options, which can be seen in the list of initial columns in the 'Questions: Initial' section above.  The Invent_Proport, which stands for inventory proportion, is a double type variable with values from `r IP_sum[1]` to `r IP_sum[6]`, a mean of `r IP_sum[4]` and a median of `r IP_sum[3]` across all of the different bike vendors.
+
+After describing and cleaning the data, the following two visualizations were looked at to see how the variables `r clean_names[2]`, `r clean_names[3]`, `r clean_names[1]`, `r clean_names[4]`, and `r clean_names[5]` fit together in a hierarchical structure to help with EDA question refinement.  
+
+###Initial Data Description Visuals
+<center>
+```{r   echo= FALSE, message= FALSE, warning=FALSE}
+#tree map plot for the data filtered on mountain bikes
+MbikeVndr <- bikeVndr %>% filter(terrain == 'Mountain')
+
+#View(MbikeV)
+treemap(MbikeVndr, #Your data frame object
+        index=c("specialty", "model"),  #A list of your categorical variables
+        vSize = "price",  #This is your quantitative variable
+        vColor = "frame",
+        type="categorical", 
+        palette = "Set1", 
+        title="Mountain Bikes", 
+        fontsize.title = 24,
+        fontsize.labels = c(12, 8),
+        bg.labels = 200,
+        border.lwds = c(4, 1),
+        ymod.labels = c(0.1,-0.05),
+        aspRatio = 1.75,
+        overlap.labels = 1,
+        position.legend = c("bottom", "center")
+)
+```
+
+The visualization above takes an initial look at how the mountain bikes are hierarchically organized with specialty being the second level and then model, colored by frame compostion and the size of each model level rectangle is based on the price of that model of bike.  It can be observed that all mountain bikes models with the specialty, `r Specialty[6]`   have frames made of carbon and all `r Specialty[3]` and `r Specialty[5]` have frames made of aluminum.  The mountain bike with specialites, `r Specialty[4]` and `r Specialty[1]` have models with both carbon and aluminum frames.
+
+
+  
+```{r echo=FALSE, message= FALSE, warning=FALSE}
+#tree map plot for the data filtered on road bikes
+
+RbikeVndr <- bikeVndr %>% filter( terrain == 'Road')
+
+treemap(RbikeVndr, #Your data frame object
+        index=c("specialty", "model"),  #A list of your categorical variables
+        vSize = "price",  #This is your quantitative variable
+        vColor = "frame",
+        type="categorical", 
+        palette = "Set1", 
+        title="Road Bikes", 
+        fontsize.title = 24,
+        fontsize.labels = c(12, 8),
+        bg.labels = 200,
+        border.lwds = c(4, 1),
+        ymod.labels = c(0.1,-0.05),
+        aspRatio = 1.75,
+        overlap.labels = 1,
+        position.legend = c("bottom", "center")
+)
+
+```
+
+The visualization above takes an initial look at how the road bikes are hierarchically organized with specialty being the second level and then model, colored by frame compostion and the size of each model level rectangle is based on the price of that model of bike.  It can be observed that all road bikes models with the specialty, `r Specialty[8]` and `r Specialty[7]` have frames made of carbon.  The road  bike with specialites, `r Specialty[9]` and `r Specialty[2]` have models with both carbon and aluminum frames.
+   
+</center> 
+
+
+
+---
+
+## Questions: Redefined
+
+1. What is the price distribution in terms of model and frame?
+2. Which vendor(s), if any, carry the most variety of inventory by model?   
+       - How is that distributed?
+3. Does geographic location determine inventories (mountain vs road)?
+4. What is the relationship between price and the inventor percentage of the vendor, Phoenix Bi-peds?
+
+ 
+---
+
+##Data Exploration
+
+The data exploration starts off with aggregating the data to include two more variables.  This aggregation is based on the association of each vendor with a city in the United States. It will include two variables, Vendor_Latitude and Vendor_Longitude which correspond to the latitude and longitude of each city.  Next is the examination of how the price of each bike model is distributed.  
+
+```{r echo= FALSE, message= FALSE, warning=FALSE}
+library(stringr)
+#Add extra columns for ease of calucations and plotting
+#mutate inventory proportion into inventory percent by multiplying by 100
+#add two columns with Vendor names that will become the Lat and Long of the Vendor
+bikeVndrcln_xtr <- bikeVndr_cln %>%  mutate(Vendor_Latitude = Vendor)  %>% 
+                                     mutate(Vendor_Longitude = Vendor)
+#Convert columns Vendor_Latitude and Vendor_Longitude in to Lat and Long numeric coordinates
+#Latitude rounded to the hundreths place
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Albuquerque Cycles', '35.09')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Ann Arbor Speed', '42.28')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Austin Cruisers', '30.27')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Cincinnati Speed', '39.10')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Columbus Race Equipment', '39.96')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Dallas Cycles', '32.78')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Denver Bike Shop', '39.74')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Detroit Cycles', '42.33')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Indianapolis Velocipedes', '39.77')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Ithaca Mountain Climbers', '42.44')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Kansas City 29ers', '39.10')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Las Vegas Cycles', '36.17')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Los Angeles Cycles', '34.05')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Louisville Race Equipment', '38.25')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Miami Race Equipment', '25.76')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Minneapolis Bike Shop', '44.98')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Nashville Cruisers', '36.16')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'New Orleans Velocipedes', '29.95')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'New York Cycles', '40.71')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Oklahoma City Race Equipment', '35.47')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Philadelphia Bike Shop', '39.95')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Phoenix Bi-peds', '33.45')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Pittsburgh Mountain Machines', '40.44')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Portland Bi-peds', '45.52')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Providence Bi-peds', '41.82')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'San Francisco Cruisers', '37.77')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'San Antonio Bike Shop', '29.42')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Seattle Race Equipment', '47.61')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Tampa 29ers', '27.95')
+bikeVndrcln_xtr$Vendor_Latitude <- str_replace(bikeVndrcln_xtr$Vendor_Latitude, 'Wichita Speed', '37.69')
+#Longitude rounded to the hundreths place
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Albuquerque Cycles', '106.61')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Ann Arbor Speed', '83.74')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Austin Cruisers', '97.74')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Cincinnati Speed', '84.51')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Columbus Race Equipment', '83.00')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Dallas Cycles', '96.80')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Denver Bike Shop', '105.00')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Detroit Cycles', '83.05')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Indianapolis Velocipedes', '86.16')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Ithaca Mountain Climbers', '76.50')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Kansas City 29ers', '94.58')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Las Vegas Cycles', '115.14')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Los Angeles Cycles', '118.24')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Louisville Race Equipment', '85.76')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Miami Race Equipment', '80.19')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Minneapolis Bike Shop', '93.27')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Nashville Cruisers', '86.78')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'New Orleans Velocipedes', '90.07')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'New York Cycles', '74.01')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Oklahoma City Race Equipment', '97.52')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Philadelphia Bike Shop', '75.17')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Phoenix Bi-peds', '112.07')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Pittsburgh Mountain Machines', '80.00')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Portland Bi-peds', '122.68')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Providence Bi-peds', '71.41')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'San Francisco Cruisers', '122.42')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'San Antonio Bike Shop', '98.49')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Seattle Race Equipment', '122.33')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Tampa 29ers', '82.46')
+bikeVndrcln_xtr$Vendor_Longitude <- str_replace(bikeVndrcln_xtr$Vendor_Longitude, 'Wichita Speed', '97.34')
+#head(bikeVndrcln_xtr)
+
+#Lat and Long cols are char strings 
+#Convert to numeric and make Longitudinal values negative
+bikeVndrcln_xtr$Vendor_Longitude <-(as.numeric(bikeVndrcln_xtr$Vendor_Longitude) * -1.0)
+bikeVndrcln_xtr$Vendor_Latitude <- as.numeric(bikeVndrcln_xtr$Vendor_Latitude)
+```
+
+
+###Exploratory Plots
+
+1. What is the price distribution in terms of model and frame?
+
+```{r fig2, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+#price histogram for each model of bike (97)
+pricedis <- ggplot(bikeVndr, aes(x = price)) +
+  geom_histogram(fill='blue', color='yellow', bins = 20) +
+  scale_x_continuous(breaks=seq(0,13000,500)) +
+  scale_y_continuous(breaks = seq(0,16,2)) +
+  ggtitle("Distribution of price over all bike models")
+SDprice <- sd(bikeVndr$price)
+SDpriceR <- round(SDprice, digits = 2)
+pricedis
+```
+This visualization shows the distribution of price, in dollars, for all 97 varieties of bike models. There is a range of prices from  `r PriceSum[1]` to `r PriceSum[6]` with a mean of `r PriceSum[4]` and a stanard deviation of `r SDpriceR`. As it shows in the graph the data is skewed to the right. 
+
+```{r fig3, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+#box plot of the price variable
+pricealone <- bikeVndr %>% select(price)
+ggplot(pricealone, aes(x =  "", y =price)) + 
+  geom_boxplot() +
+  ggtitle("Boxplot of Price")+
+  scale_y_continuous(breaks = seq(0, 13000, 1000)) +
+  xlab("Price")+
+  ylab("Amount (in dollars) ")
+highprice <- bikeVndr %>% arrange(desc(price)) %>% select(model, terrain, specialty, frame, price)
+```
+This visualation show another view of the same price data as the historgram above. From this plot the first and third quartlies are shown at `r PriceSum[2]` and `r PriceSum[5]` respectively.  The five highest priced bike models, the ones above 10,000 dollars are outliers.  
+
+Although in the graph it looks like only four outliers are present.  It is noted that the two highest priced bikes, `r highprice[1,1]` and `r highprice[2,1]` are the same price, `r highprice[1,5]`.  The other three outliers,  `r highprice[3,1]`, `r highprice[4,1]` and `r highprice[5,1]` come in at `r highprice[3,5]`, `r highprice[4,5]` and `r highprice[5,5]` respectively.  They are a mix of road and mountain bikes with various specialties, but their commonality is that all have frames made from carbon.  Due to the highest price bikes all having carbon frames, the distribution of price for both types of frames, Aluminum and Carbon will be explored.
+
+```{r fig4, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+#distribution of price based on frame composition, plots
+pricedis + facet_grid(frame ~ .) +ggtitle("Distribution of Price Broken Down by Frame Composition")
+CFrmbikes <- bikeVndr %>% filter(frame == 'Carbon')
+SumCFrm <- summary(CFrmbikes$price)
+SumCFrm <- as.integer(SumCFrm) 
+SDCFrm <- sd(CFrmbikes$price)
+SDCFrm <-as.integer(SDCFrm)
+AlFrmbikes <- bikeVndr %>% filter(frame == 'Aluminum')
+SUMALFrm <- summary(AlFrmbikes$price)
+SUMALFrm <-as.integer(SUMALFrm)
+ SDALFrm <- sd(AlFrmbikes$price)
+ SDALFrm <- as.integer(SDALFrm)
+
+
+```
+This visualization show the distribution of price by frame composition, which tells two distinct stories.  For Aluminum the distribution is only skewed slightly to the right with a range of price from `r SUMALFrm[1]` to `r SUMALFrm[6]`, a mean of `r SUMALFrm[4]`, a median of `r SUMALFrm[3]` and standard deviation of `r SDALFrm`.  In contrast the carbon framed bikes have a much wider range `r SumCFrm[1]` to `r SumCFrm[6]` with a fairly uniform distribution up to the mean, `r SumCFrm[4]` and a median of `r SumCFrm[3]`.  It then has a long tail to the left.  Comparing the two, the mean of carbon framed bikes is about 1.37 times higher then that of aluminum bikes.  
+
+2. Which vendor(s), if any, carry all the varieties of inventory by model? 
+       - How is that distributed over the vendor?
+       
+The data set was filtered on to find all of the observations in which the inventory proportion is not equal to zero.  The variety of bike each vendor has in its inventory was counted to then find which vendor(s) have the largest variety. 
+The following code does this.   
+```{r echo = FALSE}
+#find the vendor who have some of all varieties of bikes in their inventory
+    grtrIPp_ven_cntmax <- bikeVndrcln_xtr %>% filter(Invent_Proport != 0.0000) %>%
+                                            count(Vendor) %>% filter(n == max(n))
+```
+
+```{r echo = FALSE}
+#check the length
+   LEN_Ven <- length(grtrIPp_ven_cntmax$Vendor)
+```
+From this, it is found that the number of vendors who carry all 97 variety of bike models is  `r LEN_Ven`. They are `r grtrIPp_ven_cntmax[1,1]`, `r grtrIPp_ven_cntmax[2,1]`, and `r grtrIPp_ven_cntmax[3,1]`. 
+
+
+```{r fig5, fig.height = 10, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+#plot for the bike vendors with one of every type of bike
+  Phnx <- bikeVndrcln_xtr %>% filter(Vendor == 'Phoenix Bi-peds' | Vendor == 'Denver Bike Shop' | Vendor == 'Kansas City 29ers') %>%
+    mutate(Inv_Prcnt = Invent_Proport *100)
+  ggplot(Phnx) + 
+  geom_point(aes(x = price, y = Inv_Prcnt)) +
+  scale_y_continuous(breaks = seq(0,3,.25)) +
+  scale_x_continuous(breaks = seq(0,13000, 1000)) +
+  ggtitle("Inventory Percentage vs Price for each Bike Model") +
+  ylab("Inventory (in percent)") +
+  xlab("Price (in dollars)") +
+  facet_grid(Vendor ~ .)
+```
+This visualization shows where each model of bike falls in terms of the percentage of inventory for the the three vendors that carry all 97 varieties of bike models, `r grtrIPp_ven_cntmax[1,1]`, `r grtrIPp_ven_cntmax[2,1]`, and `r grtrIPp_ven_cntmax[3,1]`. 
+It is shown that for the Denver Bike Shop all of it's inventory that is above two percent is in the range of 0-2500 dollars.  It is shown that for the Kansas City 29ers, unlike the Denver Bike Shop inventory that is above two percent is in the range of 0-5000 dollars.  It is shown that for the Phoenix Bi-peds, unlike the Denver Bike Shop and the Kansas City 29ers the inventory percentage seems to gradually decrease then leveling out as the the price of the bikes increase. 
+
+
+###Cluster Anaylsis
+
+3. Does geographic location determine inventories (mountain vs road)?
+
+Cluster analysis will be used in this examination of the dataset, BikeVendors, to determine where the optimal number of geographic clusters are for the set of 35 vendors.  Then each cluster can be examined to see if there are trends or patterns in the model, specialty, terrain, frame, or price of bike for that cluster.  
+
+```{r fig6, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+library(purrr)
+library(ggplot2)
+library(ggrepel)
+###Latitude and Longitude
+#subet the data to have once instance of each Vendor's lat and long
+LatLongBike <- bikeVndrcln_xtr %>% select(Vendor_Latitude, Vendor_Longitude, Vendor)
+LatLongBike <- subset(LatLongBike, !duplicated(Vendor))
+#create an Object with only the lat and long values to do kmeans clustering
+#see where the elbow is and how the Vendors are geographically clustered 
+#then invetigate is Vendor in same geographic areas have same purchasing patterns
+LatLongBike_num <- LatLongBike %>% select(Vendor_Latitude, Vendor_Longitude)
+#set seed for repeatable results 
+set.seed(16)
+#create a list of the total withinness of the kmeans with centers 
+Bike_tot_winss <- map_dbl(1:29, function(k){
+                          modelB <- kmeans(LatLongBike_num, centers = k)
+                          modelB$tot.withinss 
+})
+#make that list in to a dataframe to generate elbow plot
+Belbow_df <- data.frame(k = 1:29, Bike_tot_winss = Bike_tot_winss)
+#create elbow plot
+ggplot(Belbow_df, aes(x = k, y = Bike_tot_winss)) + 
+  geom_line() +
+  scale_x_continuous(breaks = 1:nrow(LatLongBike)) +
+  ggtitle("Elbow Plot for Geographic Clustering of Bike Vendors") +
+  ylab("Vendor Geographic Location Total Withiness") +
+  xlab("Number of Clusters, k") 
+ #get details of how the Vendors should be clustered based in elbow plot
+ set.seed(16)
+ modelBbest <- kmeans(LatLongBike_num, centers = 10)
+```
+This elbow plot shows the total withiness as k, the number of clusters, goes from 1 to 30.  As can be seen the curve really starts to flatten out at k = 10. Ten clusters will be used to cluster the bike vendors into geographic groups. 
+
+```{r fig7, fig.height = 8, fig.width = 8, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+#create a new sub dataset that includes cluster values
+LatLongBikewClust <- LatLongBike %>% mutate(Cluster = modelBbest$cluster)
+#Groupings of geographic clusters by Vendors
+LatLongBikewClust %>%  
+  ggplot(aes(x = Cluster, y = reorder(Vendor, desc(Cluster)))) + 
+  geom_point() +
+  scale_x_continuous(breaks=seq(0,10,1)) +
+  ggtitle("Geographic Clustering of Bike Vendors") +
+  ylab("Vendors") +
+  xlab("Clusters (cluster numbering is random)")
+```
+In the plot above and for anyone familiar with the geography of the United States these clusters seem fairly reasonable.  There are ten clusters with groups ranging from one vendor to five vendors. The cluster number was randomly assigned to each of the clusters.  
+
+The thought for clustering this way being that vendors in similar geographic areas would most likely have similar terrain and there for would be interested in similar bikes. Cluster 1,  which includes the Philadelphia Bike Shop, New York Cycles, and Providence Bi-peds will be examine to see if they have similar inventories regarding models of bikes that are either mountain or road bikes.  
+
+```{r fig11, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+  MountBCl1 <- bikeVndrcln_xtr %>% filter(terrain == 'Mountain') %>%
+                    filter(Invent_Proport != 0.0)  %>% filter(Vendor == 'Providence Bi-peds'| Vendor == 'Philadelphia Bike Shop'| Vendor == 'New York Cycles') %>% arrange(model)
+
+ggplot()+
+  geom_bar(aes(MountBCl1$model), color = 'yellow', fill = 'blue')+
+  xlab("Model of Bike")+
+  ylab("Count")+
+  ggtitle("Cluster 1: Mountain Bike Model Occurance over the Cluster")+
+  theme(axis.text.x = element_text(angle = 90))
+```
+For the plot above, the count refers to how many of the three vendors in Cluster 1 have that particular model of mountain bike in their inventory.  When considering similarity between the vendor's inventory pay attention to the bike models with count three.  All of the vendor's inventory in Cluster 1 have 40 of the 51 mountain bike models in common.  
+
+```{r fig12, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+  RoadBCl1 <- bikeVndrcln_xtr %>% filter(terrain == 'Road') %>%
+                    filter(Invent_Proport != 0.0)  %>% filter(Vendor == 'Providence Bi-peds'| Vendor == 'Philadelphia Bike Shop'| Vendor == 'New York Cycles') %>% arrange(model)
+
+ggplot()+
+  geom_bar(aes(RoadBCl1$model), color = 'yellow', fill = 'blue') +
+  xlab("Model of Bike")+
+  ylab("Count")+
+  ggtitle("Cluster 1: Road Bike Model Occurance over the Cluster")+
+  theme(axis.text.x = element_text(angle = 90))
+```
+For the plot above, the count refers to how many of the three vendors in Cluster 1 have that particular model of road bike in their inventory.  When considering similarity between the vendor's inventory pay attention to the bike models with count three.  All of the vendor's inventory in Cluster 1 have 38 of the 46 mountain bike models in common.
+
+
+###Regression Analysis
+
+4. What is the relationship between price and the inventor percentage of the vendor, Phoenix Bi-peds?
+
+From the data exploration, it seems that for the Phoenix Bi-peds vendor there may be a negative linear association between the price of the bike models and the percentage of inventory that bike has. Take another look: 
+
+```{r fig8, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+#plot for the Phoenix Bi-peds
+  Phoenix <- bikeVndrcln_xtr %>% filter(Vendor == 'Phoenix Bi-peds' ) %>% 
+    mutate(Inv_Prcnt = Invent_Proport *100)
+  ggplot(Phoenix) + 
+  geom_point(aes(x = price, y = Inv_Prcnt)) +
+  scale_y_continuous(breaks = seq(0,3,.25)) +
+  scale_x_continuous(breaks = seq(0,13000, 1000)) +
+  ggtitle("Phoenix Bi-peds's Inventory Percentage vs Price for each Bike Model") +
+  ylab("Inventory (in percent)") +
+  xlab("Price (in dollars)")
+```
+Here is the plot for the vendor Phoenix Bi-peds each point represent on of the 97 bike models.  It seems to have a slightly negative linear relationship.  A glm will be applied. 
+```{r echo= FALSE, message= FALSE, warning=FALSE}
+#gaussian distribuion general linear model
+PhoenixGLM <- glm(Inv_Prcnt ~ price, Phoenix, family = "gaussian")
+PhoenixGLM
+```
+In this general linear model using the gaussian distribution the dependant variable is the 'inventory percentage' and the independant variable is the price.  The function for the regression is as follows:
+
+ y = -0.0001283x + 1.5383183
+
+Next a check for heteorgeneity in the residuals will be performed.  If this model is a potential good fit for the data we expect the points to be randomly dispersed horizontally around zero.  
+```{r fig9, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+#Heterogenity Check for the gaussian glm
+diagPh <- data.frame(residuals= resid(PhoenixGLM), fitted = fitted(PhoenixGLM))
+ggplot(diagPh)+
+  geom_point(aes(x = fitted, y = residuals)) +
+  scale_y_continuous(breaks = seq(-1,1,.5)) +
+  ggtitle("Heterogenity Check for Gaussian Distribution") 
+```
+In the plot above the points are not randomly dispersed around zero and seem to spread as the fitted value increase.  This means there is heterogenity.  There for this general linear model is not a good fit for the data.  
+
+Now a poisson glm will be tried.  
+```{r echo= FALSE, message= FALSE, warning=FALSE}
+#glm with the poisson distribution
+PhoenixGLMP <- glm(Inv_Prcnt ~ price, Phoenix, family = "poisson")
+PhoenixGLMP
+```
+In this general linear model using the poisson distribution the same the dependant variable, 'inventory percentage' and independant variable, price are used.  The function for the regression is as follows:
+
+ y = -0.0001675x + 0.5987616
+
+```{r fig10, fig.height = 5, fig.width = 10, fig.align = "center", echo= FALSE, message= FALSE, warning=FALSE}
+#Heterogenity Check for the poisson distribution glm
+diag2Ph <- data.frame(residuals= resid(PhoenixGLMP), fitted = fitted(PhoenixGLMP))
+ggplot(diag2Ph)+
+  geom_point(aes(x = fitted, y = residuals)) +
+  scale_y_continuous(breaks = seq(-1,1,.5)) +
+  ggtitle("Heterogenity Check for Poisson Distribtuion") 
+```
+This heterogenity check plot when using the poisson distribution looks as though the points are more randomly distributed around zero than the one before.  
+
+Now a check for overdispersion will be done.  This calculates the ratio between the residual deviance and the degrees of freedom.  
+
+```{r echo= FALSE, message= FALSE, warning=FALSE}
+#over dispersion test for the poisson distribution glm
+library(AER)
+dispersiontest(PhoenixGLMP)
+```
+For this test 0.1191015 > 0 and therefore overdispersion exists.    
+
+---
+
+##Findings
+1. What is the price distribution in terms of model and frame?
+
+   The distribution of price over the model of bikes is skewed to the right because of five found outliers which are all over 10000 dollars.  When this is broken down to look at the two types of frames, carbon and aluminum, the carbon frame bikes are more uniformly distributed over a wider range of values than the aluminum bikes.  Carbon framed bikes are also all of the five high price outliers.  More exploration could be done to see if bike specialty or the type of terrain it was meant for had any factor when is comes to model price.  
+   
+2. Which stores carry the most variety of inventory by model?
+ 
+ There are three vendors who have atleast one of every type of bike model in their inventory.  When looking at the plots of inventory percentage versus price there does not seem to be a relationship between the three vendors inventories.  Further investigation into how those bikes are distributed for those three vendors over terrain and specialty might add more insight into whether there is a relationship between the three. 
+ 
+3. Does geographic location determine inventories (mountain vs road)?
+
+After the cluster analysis helped divid the vendors into geographically based cluster, an examination of Cluster 1 was performed.  When looking at the model of bikes broken into road bike and mountain bikes, it was found that Cluster 1 has very similar inventories for both road and mountain bikes in terms of model type.  The other cluster's inventory distributions should be investigated to see whether geographic locations do determine inventories of vendors.  
+
+4. What is the relationship between price and geographic location of vendor?
+
+In the intial look at the plot of Phoenix Bi-peds inventory percentage versus the price of each bike model there seemed to be a bit of a negative linear association.  Upon futher investigation it was found that a gaussian general linear model (glm) was not a good fit for the data.  A poisson glm was then tried it was found to have less heterogenity but there was overdisperion. Further investigation into other glm's would be appropriate to find a good fit model for this data.    
+
+
